@@ -2,7 +2,7 @@ import express from "express";
 const router = express.Router();
 import finalhandler from "finalhandler";
 
-import Post from "../models/Post.mjs";
+import Post from "../models/post.mjs";
 import onSuccess from "../utils/onSuccess.mjs";
 import onError from "../utils/onError.mjs";
 
