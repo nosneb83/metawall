@@ -3,8 +3,8 @@ const router = express.Router();
 import finalhandler from "finalhandler";
 
 import Post from "../models/post.mjs";
-import onSuccess from "../utils/onSuccess.mjs";
-import onError from "../utils/onError.mjs";
+import onSuccess from "../services/onSuccess.mjs";
+import onError from "../services/onError.mjs";
 
 router.get("/", async function (req, res, next) {
   const posts = await Post.find();
