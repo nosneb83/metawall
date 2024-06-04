@@ -6,13 +6,13 @@ const postSchema = new mongoose.Schema(
       type: String,
       required: [true, "貼文姓名未填寫"],
     },
-    image: {
-      type: String,
-      default: "",
-    },
     content: {
       type: String,
       required: [true, "Content 未填寫"],
+    },
+    image: {
+      type: String,
+      default: "",
     },
     likes: {
       type: Number,

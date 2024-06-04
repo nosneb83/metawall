@@ -4,10 +4,13 @@ import finalhandler from "finalhandler";
 import Post from "../models/post.mjs";
 import onSuccess from "../services/onSuccess.mjs";
 import onError from "../services/onError.mjs";
+import auth from "../services/auth.mjs";
+const { isAuth, generateSendJWT } = auth;
 
 const router = express.Router();
 
-router.get("/", async function (req, res, next) {
+// 取得所有貼文
+router.get("/", isAuth, async function (req, res, next) {
   const q =
     req.query.q !== undefined ? { content: new RegExp(req.query.q) } : {};
   const timeSort = req.query.timeSort === "asc" ? "createdAt" : "-createdAt";
@@ -15,7 +18,8 @@ router.get("/", async function (req, res, next) {
   res.json(posts);
 });
 
-router.post("/", async function (req, res, next) {
+// 新增貼文
+router.post("/", isAuth, async function (req, res, next) {
   try {
     const data = req.body;
     const invalidKeys = findInvalidBodyKeys(data);
@@ -32,7 +36,8 @@ router.post("/", async function (req, res, next) {
   }
 });
 
-router.patch("/:id", async function (req, res, next) {
+// 修改貼文
+router.patch("/:id", isAuth, async function (req, res, next) {
   try {
     const data = req.body;
     const invalidKeys = findInvalidBodyKeys(data);
@@ -56,7 +61,8 @@ router.patch("/:id", async function (req, res, next) {
   }
 });
 
-router.delete("/", async function (req, res, next) {
+// 刪除貼文
+router.delete("/", isAuth, async function (req, res, next) {
   if (req.originalUrl === "/posts") {
     try {
       await Post.deleteMany();
@@ -69,7 +75,8 @@ router.delete("/", async function (req, res, next) {
   }
 });
 
-router.delete("/:id", async function (req, res, next) {
+// 刪除特定貼文
+router.delete("/:id", isAuth, async function (req, res, next) {
   try {
     await Post.findByIdAndDelete(req.params.id).orFail();
     onSuccess(res);
