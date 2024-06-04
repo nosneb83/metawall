@@ -18,6 +18,14 @@ const postSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    createdAt: {
+      type: Date,
+      select: false,
+    },
+    updatedAt: {
+      type: Date,
+      select: false,
+    },
   },
   {
     versionKey: false,

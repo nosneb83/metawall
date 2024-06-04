@@ -1,14 +1,18 @@
 import express from "express";
-const router = express.Router();
 import finalhandler from "finalhandler";
 
 import Post from "../models/post.mjs";
 import onSuccess from "../services/onSuccess.mjs";
 import onError from "../services/onError.mjs";
 
+const router = express.Router();
+
 router.get("/", async function (req, res, next) {
-  const posts = await Post.find();
-  onSuccess(res, posts);
+  const q =
+    req.query.q !== undefined ? { content: new RegExp(req.query.q) } : {};
+  const timeSort = req.query.timeSort === "asc" ? "createdAt" : "-createdAt";
+  const posts = await Post.find(q).sort(timeSort);
+  res.json(posts);
 });
 
 router.post("/", async function (req, res, next) {

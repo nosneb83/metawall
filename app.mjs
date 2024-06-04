@@ -4,17 +4,17 @@ import cookieParser from "cookie-parser";
 import logger from "morgan";
 import url from "url";
 import cors from "cors";
-import dotenv from "dotenv";
 import mongoose from "mongoose";
+import "dotenv/config";
 
 import indexRouter from "./routes/index.mjs";
-import postsRouter from "./routes/posts.mjs";
+import postsRouter from "./routes/post.mjs";
+import usersRouter from "./routes/user.mjs";
 
 const __filename = url.fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Connect Database
-dotenv.config({ path: ".env/config.env" });
 const db = process.env.DATABASE.replace(
   "<password>",
   process.env.DATABASE_PASSWORD
@@ -36,6 +36,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use(cors());
 
 app.use("/", indexRouter);
-app.use("/posts", postsRouter);
+app.use("/post", postsRouter);
+app.use("/user", usersRouter);
 
 export default app;
