@@ -2,9 +2,10 @@ import mongoose from "mongoose";
 
 const postSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: [true, "貼文姓名未填寫"],
+    user: {
+      type: mongoose.Schema.ObjectId,
+      ref: "User",
+      required: [true, "貼文 ID 未填寫"],
     },
     content: {
       type: String,
@@ -14,10 +15,12 @@ const postSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    likes: {
-      type: Number,
-      default: 0,
-    },
+    likes: [
+      {
+        type: mongoose.Schema.ObjectId,
+        ref: "User",
+      },
+    ],
     createdAt: {
       type: Date,
       select: false,

@@ -6,28 +6,41 @@ import Post from "../models/post.mjs";
 import onSuccess from "../services/onSuccess.mjs";
 import onError from "../services/onError.mjs";
 import auth from "../services/auth.mjs";
-const { isAuth, generateSendJWT } = auth;
+const { isAuth } = auth;
 
 // 取得所有貼文
-router.get("/", isAuth, async function (req, res, next) {
+router.get("/", isAuth, async function (req, res) {
   const q =
     req.query.q !== undefined ? { content: new RegExp(req.query.q) } : {};
   const timeSort = req.query.timeSort === "asc" ? "createdAt" : "-createdAt";
-  const posts = await Post.find(q).sort(timeSort);
+  const posts = await Post.find(q)
+    .populate({
+      path: "user",
+      select: "name photo",
+    })
+    .sort(timeSort);
   res.json(posts);
 });
 
 // 新增貼文
-router.post("/", isAuth, async function (req, res, next) {
+router.post("/", isAuth, async function (req, res) {
   try {
     const data = req.body;
     const invalidKeys = findInvalidBodyKeys(data);
     if (invalidKeys.length) {
       throw new Error(`Invalid key(s): ${invalidKeys.join(", ")}`);
     }
+
+    data.content = data.content?.trim();
+    if (!data.content) {
+      throw new Error("Content 未填寫");
+    }
+    data.image = data.image?.trim();
+
     const newPost = await Post.create({
-      name: data.name?.trim() ?? "",
-      content: data.content?.trim() ?? "",
+      user: req.user.id,
+      content: data.content,
+      image: data.image,
     });
     onSuccess(res, newPost);
   } catch (err) {
@@ -36,18 +49,25 @@ router.post("/", isAuth, async function (req, res, next) {
 });
 
 // 修改貼文
-router.patch("/:id", isAuth, async function (req, res, next) {
+router.patch("/:id", isAuth, async function (req, res) {
   try {
     const data = req.body;
     const invalidKeys = findInvalidBodyKeys(data);
     if (invalidKeys.length) {
       throw new Error(`Invalid key(s): ${invalidKeys.join(", ")}`);
     }
+
+    data.content = data.content?.trim();
+    if (!data.content) {
+      throw new Error("Content 未填寫");
+    }
+    data.image = data.image?.trim();
+
     const updatedPost = await Post.findByIdAndUpdate(
       req.params.id,
       {
-        name: data.name?.trim() ?? "",
-        content: data.content?.trim() ?? "",
+        content: data.content,
+        image: data.image,
       },
       {
         new: true,
@@ -61,8 +81,8 @@ router.patch("/:id", isAuth, async function (req, res, next) {
 });
 
 // 刪除貼文
-router.delete("/", isAuth, async function (req, res, next) {
-  if (req.originalUrl === "/posts") {
+router.delete("/", isAuth, async function (req, res) {
+  if (req.originalUrl === "/post") {
     try {
       await Post.deleteMany();
       onSuccess(res);
@@ -75,7 +95,7 @@ router.delete("/", isAuth, async function (req, res, next) {
 });
 
 // 刪除特定貼文
-router.delete("/:id", isAuth, async function (req, res, next) {
+router.delete("/:id", isAuth, async function (req, res) {
   try {
     await Post.findByIdAndDelete(req.params.id).orFail();
     onSuccess(res);

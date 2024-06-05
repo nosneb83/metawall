@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    following: [
+    followers: [
       {
         user: { type: mongoose.Schema.ObjectId, ref: "User" },
         createdAt: {
@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema(
         },
       },
     ],
-    followers: [
+    following: [
       {
         user: { type: mongoose.Schema.ObjectId, ref: "User" },
         createdAt: {
