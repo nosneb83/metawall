@@ -1,4 +1,5 @@
-import express from "express";
+import { Router } from "express";
+const router = Router();
 import bcrypt from "bcryptjs";
 import validator from "validator";
 
@@ -8,7 +9,6 @@ import handleErrorAsync from "../utils/handleErrorAsync.mjs";
 import auth from "../services/auth.mjs";
 const { isAuth, generateSendJWT } = auth;
 
-const router = express.Router();
 const saltLength = 12;
 
 // 註冊

@@ -10,6 +10,7 @@ import "dotenv/config";
 import indexRouter from "./routes/index.mjs";
 import postsRouter from "./routes/post.mjs";
 import usersRouter from "./routes/user.mjs";
+import uploadRouter from "./routes/upload.mjs";
 
 const __filename = url.fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,5 +39,6 @@ app.use(cors());
 app.use("/", indexRouter);
 app.use("/post", postsRouter);
 app.use("/user", usersRouter);
+app.use("/upload", uploadRouter);
 
 export default app;

@@ -1,4 +1,5 @@
-import express from "express";
+import { Router } from "express";
+const router = Router();
 import finalhandler from "finalhandler";
 
 import Post from "../models/post.mjs";
@@ -6,8 +7,6 @@ import onSuccess from "../services/onSuccess.mjs";
 import onError from "../services/onError.mjs";
 import auth from "../services/auth.mjs";
 const { isAuth, generateSendJWT } = auth;
-
-const router = express.Router();
 
 // 取得所有貼文
 router.get("/", isAuth, async function (req, res, next) {
