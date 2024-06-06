@@ -4,17 +4,17 @@ import bcrypt from "bcryptjs";
 import validator from "validator";
 
 import User from "../models/user.mjs";
-import appError from "../utils/appError.mjs";
-import handleErrorAsync from "../utils/handleErrorAsync.mjs";
 import auth from "../services/auth.mjs";
 const { isAuth, generateSendJWT } = auth;
+import ApiError from "../utils/ApiError.mjs";
+import catchAsync from "../utils/catchAsync.mjs";
 
 const saltLength = 12;
 
 // 註冊
 router.post(
   "/sign-up",
-  handleErrorAsync(async (req, res, next) => {
+  catchAsync(async (req, res) => {
     let { email, password, confirmPassword, name } = req.body;
     email = email?.trim();
     password = password?.trim();
@@ -23,19 +23,19 @@ router.post(
 
     // 檢查內容是否為空
     if (!email || !password || !confirmPassword || !name) {
-      return next(appError("400", "欄位未填寫正確！", next));
+      throw new ApiError("400", "欄位未填寫正確！");
     }
     // 檢查是否為Email
     if (!validator.isEmail(email)) {
-      return next(appError("400", "Email 格式不正確", next));
+      throw new ApiError("400", "Email 格式不正確");
     }
     // 檢查密碼是否8碼以上
     if (!validator.isLength(password, { min: 8 })) {
-      return next(appError("400", "密碼字數低於 8 碼", next));
+      throw new ApiError("400", "密碼字數低於 8 碼");
     }
     // 檢查確認密碼是否一致
     if (password !== confirmPassword) {
-      return next(appError("400", "密碼不一致！", next));
+      throw new ApiError("400", "密碼不一致！");
     }
 
     // 加密密碼
@@ -45,6 +45,7 @@ router.post(
       password: password,
       name: name,
     });
+
     generateSendJWT(newUser, 201, res);
   })
 );
@@ -52,20 +53,21 @@ router.post(
 // 登入
 router.post(
   "/sign-in",
-  handleErrorAsync(async (req, res, next) => {
+  catchAsync(async (req, res) => {
     let { email, password } = req.body;
     email = email?.trim();
     password = password?.trim();
 
     if (!email || !password) {
-      return next(appError(400, "帳號密碼不可為空", next));
+      throw new ApiError(400, "帳號密碼不可為空");
     }
 
     const user = await User.findOne({ email }, "+password");
     const auth = await bcrypt.compare(password, user.password);
     if (!auth) {
-      return next(appError(400, "您的密碼不正確", next));
+      throw new ApiError(400, "您的密碼不正確");
     }
+
     generateSendJWT(user, 200, res);
   })
 );
@@ -74,7 +76,7 @@ router.post(
 router.get(
   "/profile",
   isAuth,
-  handleErrorAsync(async (req, res) => {
+  catchAsync(async (req, res) => {
     res.json({
       status: "success",
       user: req.user,
@@ -86,13 +88,13 @@ router.get(
 router.patch(
   "/profile",
   isAuth,
-  handleErrorAsync(async (req, res, next) => {
+  catchAsync(async (req, res) => {
     let { name } = req.body;
     name = name?.trim();
 
     // 檢查內容是否為空
     if (!name) {
-      return next(appError("400", "欄位未填寫正確！", next));
+      throw new ApiError("400", "欄位未填寫正確！");
     }
 
     const user = await User.findByIdAndUpdate(
@@ -102,7 +104,11 @@ router.patch(
       },
       { new: true, runValidators: true }
     );
-    generateSendJWT(user, 200, res);
+
+    res.json({
+      status: "success",
+      user: req.user,
+    });
   })
 );
 
@@ -110,22 +116,22 @@ router.patch(
 router.patch(
   "/change-password",
   isAuth,
-  handleErrorAsync(async (req, res, next) => {
+  catchAsync(async (req, res) => {
     let { password, confirmPassword } = req.body;
     password = password?.trim();
     confirmPassword = confirmPassword?.trim();
 
     // 檢查內容是否為空
     if (!password || !confirmPassword) {
-      return next(appError("400", "欄位未填寫正確！", next));
+      throw new ApiError("400", "欄位未填寫正確！");
     }
     // 檢查密碼是否8碼以上
     if (!validator.isLength(password, { min: 8 })) {
-      return next(appError("400", "密碼字數低於 8 碼", next));
+      throw new ApiError("400", "密碼字數低於 8 碼");
     }
     // 檢查確認密碼是否一致
     if (password !== confirmPassword) {
-      return next(appError("400", "密碼不一致！", next));
+      throw new ApiError("400", "密碼不一致！");
     }
 
     const newPassword = await bcrypt.hash(password, saltLength);
@@ -136,6 +142,7 @@ router.patch(
       },
       { new: true, runValidators: true }
     );
+
     generateSendJWT(user, 200, res);
   })
 );

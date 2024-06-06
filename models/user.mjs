@@ -1,6 +1,6 @@
-import mongoose from "mongoose";
+import { Schema, model } from "mongoose";
 
-const userSchema = new mongoose.Schema(
+const userSchema = new Schema(
   {
     email: {
       type: String,
@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema(
     },
     followers: [
       {
-        user: { type: mongoose.Schema.ObjectId, ref: "User" },
+        user: { type: Schema.ObjectId, ref: "User" },
         createdAt: {
           type: Date,
           default: Date.now,
@@ -34,7 +34,7 @@ const userSchema = new mongoose.Schema(
     ],
     following: [
       {
-        user: { type: mongoose.Schema.ObjectId, ref: "User" },
+        user: { type: Schema.ObjectId, ref: "User" },
         createdAt: {
           type: Date,
           default: Date.now,
@@ -56,4 +56,4 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-export default mongoose.model("User", userSchema);
+export default model("User", userSchema);

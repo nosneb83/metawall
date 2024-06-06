@@ -1,9 +1,9 @@
-import mongoose from "mongoose";
+import { Schema, model } from "mongoose";
 
-const postSchema = new mongoose.Schema(
+const postSchema = new Schema(
   {
     user: {
-      type: mongoose.Schema.ObjectId,
+      type: Schema.ObjectId,
       ref: "User",
       required: [true, "貼文 ID 未填寫"],
     },
@@ -17,7 +17,7 @@ const postSchema = new mongoose.Schema(
     },
     likes: [
       {
-        type: mongoose.Schema.ObjectId,
+        type: Schema.ObjectId,
         ref: "User",
       },
     ],
@@ -36,4 +36,4 @@ const postSchema = new mongoose.Schema(
   }
 );
 
-export default mongoose.model("Post", postSchema);
+export default model("Post", postSchema);

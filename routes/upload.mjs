@@ -2,21 +2,21 @@ import { Router } from "express";
 const router = Router();
 import { v4 as uuidv4 } from "uuid";
 
-import appError from "../utils/appError.mjs";
-import handleErrorAsync from "../utils/handleErrorAsync.mjs";
-import uploadImage from "../services/imageFilter.mjs";
-import firebase from "../services/firebase.mjs";
-const bucket = firebase.storage().bucket();
 import auth from "../services/auth.mjs";
 const { isAuth } = auth;
+import firebase from "../services/firebase.mjs";
+const bucket = firebase.storage().bucket();
+import uploadImage from "../services/imageFilter.mjs";
+import ApiError from "../utils/ApiError.mjs";
+import catchAsync from "../utils/catchAsync.mjs";
 
 router.post(
   "/",
   isAuth,
   uploadImage,
-  handleErrorAsync(async (req, res, next) => {
+  catchAsync(async (req, res) => {
     if (!req.files.length) {
-      return next(appError(400, "尚未上傳檔案", next));
+      throw new ApiError(400, "尚未上傳檔案");
     }
     // 取得上傳的檔案資訊列表裡面的第一個檔案
     const file = req.files[0];
