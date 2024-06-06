@@ -25,17 +25,21 @@ router.post(
     if (!email || !password || !confirmPassword || !name) {
       throw new ApiError("400", "欄位未填寫正確！");
     }
-    // 檢查是否為Email
+    // 檢查email格式
     if (!validator.isEmail(email)) {
       throw new ApiError("400", "Email 格式不正確");
     }
-    // 檢查密碼是否8碼以上
+    // 檢查密碼長度
     if (!validator.isLength(password, { min: 8 })) {
       throw new ApiError("400", "密碼字數低於 8 碼");
     }
     // 檢查確認密碼是否一致
     if (password !== confirmPassword) {
       throw new ApiError("400", "密碼不一致！");
+    }
+    // 檢查email是否已被註冊
+    if (await User.exists({ email })) {
+      throw new ApiError("400", "此 Email 已被註冊");
     }
 
     // 加密密碼
@@ -144,6 +148,74 @@ router.patch(
     );
 
     generateSendJWT(user, 200, res);
+  })
+);
+
+// 追蹤
+router.post(
+  "/:id/follow",
+  isAuth,
+  catchAsync(async (req, res) => {
+    if (req.params.id === req.user.id) {
+      throw new ApiError(401, "您無法追蹤自己");
+    }
+
+    await User.updateOne(
+      {
+        _id: req.user.id,
+        "following.user": { $ne: req.params.id },
+      },
+      {
+        $addToSet: { following: { user: req.params.id } },
+      }
+    );
+    await User.updateOne(
+      {
+        _id: req.params.id,
+        "followers.user": { $ne: req.user.id },
+      },
+      {
+        $addToSet: { followers: { user: req.user.id } },
+      }
+    );
+
+    res.json({
+      status: "success",
+      message: "您已成功追蹤！",
+    });
+  })
+);
+
+// 取消追蹤
+router.delete(
+  "/:id/unfollow",
+  isAuth,
+  catchAsync(async (req, res) => {
+    if (req.params.id === req.user.id) {
+      throw new ApiError(401, "您無法取消追蹤自己");
+    }
+
+    await User.updateOne(
+      {
+        _id: req.user.id,
+      },
+      {
+        $pull: { following: { user: req.params.id } },
+      }
+    );
+    await User.updateOne(
+      {
+        _id: req.params.id,
+      },
+      {
+        $pull: { followers: { user: req.user.id } },
+      }
+    );
+
+    res.json({
+      status: "success",
+      message: "您已成功取消追蹤！",
+    });
   })
 );
 
