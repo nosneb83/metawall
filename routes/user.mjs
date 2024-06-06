@@ -39,10 +39,10 @@ router.post(
     }
 
     // 加密密碼
-    password = await bcrypt.hash(req.body.password, saltLength);
+    const passwordHash = await bcrypt.hash(password, saltLength);
     const newUser = await User.create({
       email: email,
-      password: password,
+      password: passwordHash,
       name: name,
     });
 
@@ -107,7 +107,7 @@ router.patch(
 
     res.json({
       status: "success",
-      user: req.user,
+      user: user,
     });
   })
 );
@@ -134,11 +134,11 @@ router.patch(
       throw new ApiError("400", "密碼不一致！");
     }
 
-    const newPassword = await bcrypt.hash(password, saltLength);
+    const newPasswordHash = await bcrypt.hash(password, saltLength);
     const user = await User.findByIdAndUpdate(
       req.user.id,
       {
-        password: newPassword,
+        password: newPasswordHash,
       },
       { new: true, runValidators: true }
     );

@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-import appError from "../utils/ApiError.mjs";
+import ApiError from "../utils/ApiError.mjs";
 import handleErrorAsync from "../utils/catchAsync.mjs";
 import User from "../models/user.mjs";
 
@@ -15,7 +15,7 @@ const isAuth = handleErrorAsync(async (req, res, next) => {
   }
 
   if (!token) {
-    return next(appError(401, "你尚未登入！", next));
+    throw new ApiError(401, "你尚未登入！");
   }
 
   // 驗證 token 正確性

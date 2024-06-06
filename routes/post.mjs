@@ -1,6 +1,7 @@
 import { Router } from "express";
 const router = Router();
 
+import Comment from "../models/comment.mjs";
 import Post from "../models/post.mjs";
 import auth from "../services/auth.mjs";
 const { isAuth } = auth;
@@ -20,6 +21,10 @@ router.get(
       .populate({
         path: "user",
         select: "name photo",
+      })
+      .populate({
+        path: "comments",
+        select: "user content",
       })
       .sort(timeSort);
 
@@ -50,6 +55,25 @@ router.post(
     res.json({
       status: "success",
       newPost,
+    });
+  })
+);
+
+// 新增留言
+router.post(
+  "/:id/comment",
+  isAuth,
+  catchAsync(async (req, res, next) => {
+    const postID = req.params.id;
+    const { content } = req.body;
+    const newComment = await Comment.create({
+      post: postID,
+      user: req.user.id,
+      content,
+    });
+    res.status(201).json({
+      status: "success",
+      newComment,
     });
   })
 );
