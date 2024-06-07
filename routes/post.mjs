@@ -32,6 +32,26 @@ router.get(
   })
 );
 
+// 取得特定貼文
+router.get(
+  "/:id",
+  isAuth,
+  catchAsync(async function (req, res) {
+    const post = await Post.findById(req.params.id)
+      .populate({
+        path: "user",
+        select: "name photo",
+      })
+      .populate({
+        path: "comments",
+        select: "user content",
+      })
+      .orFail(new ApiError(400, "找不到該貼文"));
+
+    res.json(post);
+  })
+);
+
 // 新增貼文
 router.post(
   "/",
@@ -52,10 +72,32 @@ router.post(
       image: data.image,
     });
 
-    res.json({
+    res.status(201).json({
       status: "success",
       newPost,
     });
+  })
+);
+
+// 按讚
+router.post(
+  "/:id/like",
+  isAuth,
+  catchAsync(async function (req, res) {
+    const _id = req.params.id;
+    await Post.findOneAndUpdate({ _id }, { $addToSet: { likes: req.user.id } });
+    res.json({ status: "success" });
+  })
+);
+
+// 收回讚
+router.delete(
+  "/:id/unlike",
+  isAuth,
+  catchAsync(async (req, res) => {
+    const _id = req.params.id;
+    await Post.findOneAndUpdate({ _id }, { $pull: { likes: req.user.id } });
+    res.json({ status: "success" });
   })
 );
 
@@ -63,7 +105,7 @@ router.post(
 router.post(
   "/:id/comment",
   isAuth,
-  catchAsync(async (req, res, next) => {
+  catchAsync(async (req, res) => {
     const postID = req.params.id;
     const { content } = req.body;
     const newComment = await Comment.create({

@@ -3,6 +3,7 @@ const router = Router();
 import bcrypt from "bcryptjs";
 import validator from "validator";
 
+import Post from "../models/post.mjs";
 import User from "../models/user.mjs";
 import auth from "../services/auth.mjs";
 const { isAuth, generateSendJWT } = auth;
@@ -15,11 +16,10 @@ const saltLength = 12;
 router.post(
   "/sign-up",
   catchAsync(async (req, res) => {
-    let { email, password, confirmPassword, name } = req.body;
-    email = email?.trim();
-    password = password?.trim();
-    confirmPassword = confirmPassword?.trim();
-    name = name?.trim();
+    const email = req.body.email?.trim();
+    const password = req.body.password?.trim();
+    const confirmPassword = req.body.confirmPassword?.trim();
+    const name = req.body.name?.trim();
 
     // 檢查內容是否為空
     if (!email || !password || !confirmPassword || !name) {
@@ -66,7 +66,9 @@ router.post(
       throw new ApiError(400, "帳號密碼不可為空");
     }
 
-    const user = await User.findOne({ email }, "+password");
+    const user = await User.findOne({ email }, "+password").orFail(
+      new ApiError(400, "此 Email 未註冊")
+    );
     const auth = await bcrypt.compare(password, user.password);
     if (!auth) {
       throw new ApiError(400, "您的密碼不正確");
@@ -215,6 +217,53 @@ router.delete(
     res.json({
       status: "success",
       message: "您已成功取消追蹤！",
+    });
+  })
+);
+
+// 取得按讚列表
+router.get(
+  "/likes",
+  isAuth,
+  catchAsync(async (req, res) => {
+    const likes = await Post.find({
+      likes: req.user.id,
+    }).populate({
+      path: "user",
+      select: "name",
+    });
+    res.json({
+      status: "success",
+      likes,
+    });
+  })
+);
+
+// 取得追蹤列表
+router.get(
+  "/following",
+  isAuth,
+  catchAsync(async (req, res) => {
+    const user = await User.findById(req.user.id, "-_id following").populate({
+      path: "following.user",
+      select: "-_id name photo",
+    });
+    res.json({
+      status: "success",
+      following: user.following,
+    });
+  })
+);
+
+// 取得個人所有貼文列表
+router.get(
+  `/:id/posts`,
+  isAuth,
+  catchAsync(async (req, res) => {
+    const posts = await Post.find({ user: req.params.id });
+    res.status(201).json({
+      status: "success",
+      posts,
     });
   })
 );
