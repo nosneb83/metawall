@@ -31,7 +31,7 @@ const commentSchema = new Schema(
   }
 );
 
-commentSchema.pre(/^find/, function (next) {
+commentSchema.pre(/^find/, (next) => {
   this.populate({
     path: "user",
     select: "name photo",

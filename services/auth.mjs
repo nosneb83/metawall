@@ -1,10 +1,10 @@
+import status from "http-status";
 import jwt from "jsonwebtoken";
-
+import User from "../models/user.model.mjs";
 import ApiError from "../utils/ApiError.mjs";
-import handleErrorAsync from "../utils/catchAsync.mjs";
-import User from "../models/user.mjs";
+import catchAsync from "../utils/catchAsync.mjs";
 
-const isAuth = handleErrorAsync(async (req, res, next) => {
+export const isAuth = catchAsync(async (req, res, next) => {
   // 確認 token 是否存在
   let token;
   if (
@@ -13,13 +13,12 @@ const isAuth = handleErrorAsync(async (req, res, next) => {
   ) {
     token = req.headers.authorization.split(" ")[1];
   }
-
   if (!token) {
-    throw new ApiError(401, "你尚未登入！");
+    throw new ApiError(status.UNAUTHORIZED, "請先登入");
   }
 
   // 驗證 token 正確性
-  const decoded = await new Promise((resolve, reject) => {
+  const payload = await new Promise((resolve, reject) => {
     jwt.verify(token, process.env.JWT_SECRET, (err, payload) => {
       if (err) {
         reject(err);
@@ -28,28 +27,25 @@ const isAuth = handleErrorAsync(async (req, res, next) => {
       }
     });
   });
-  const currentUser = await User.findById(decoded.id);
+  req.user = await User.findById(payload.id).orFail(
+    new ApiError(status.UNAUTHORIZED, "帳號不存在")
+  );
 
-  req.user = currentUser;
   next();
 });
 
-const generateSendJWT = (user, statusCode, res) => {
+export const generateSendJWT = (user, statusCode, res) => {
   // 產生 JWT token
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_DAY,
   });
-  user.password = undefined;
+
   res.status(statusCode).json({
     status: "success",
+    token: token,
     user: {
-      token,
       name: user.name,
+      photo: user.photo,
     },
   });
-};
-
-export default {
-  isAuth,
-  generateSendJWT,
 };

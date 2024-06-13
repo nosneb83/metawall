@@ -1,17 +1,21 @@
 import express from "express";
-const app = express();
 import path from "path";
 import cookieParser from "cookie-parser";
 import logger from "morgan";
 import url from "url";
 import cors from "cors";
+import status from "http-status";
 import mongoose from "mongoose";
 import "dotenv/config";
 
 import indexRouter from "./routes/index.mjs";
-import postsRouter from "./routes/post.mjs";
-import usersRouter from "./routes/user.mjs";
-import uploadRouter from "./routes/upload.mjs";
+import postsRouter from "./routes/post.route.mjs";
+import uploadRouter from "./routes/upload.route.mjs";
+import usersRouter from "./routes/user.route.mjs";
+
+const app = express();
+const __filename = url.fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // 程式出現重大錯誤時
 process.on("uncaughtException", (err) => {
@@ -21,10 +25,7 @@ process.on("uncaughtException", (err) => {
   process.exit(1);
 });
 
-const __filename = url.fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Connect Database
+// 連接資料庫
 const db = process.env.DATABASE.replace(
   "<password>",
   process.env.DATABASE_PASSWORD
@@ -46,17 +47,15 @@ app.use("/post", postsRouter);
 app.use("/user", usersRouter);
 app.use("/upload", uploadRouter);
 // 404 錯誤
-app.use(function (req, res) {
-  res.status(404).json({
+app.use((req, res) => {
+  res.status(status.NOT_FOUND).json({
     status: "error",
     message: "無此路由資訊",
   });
 });
 
 // 錯誤處理
-app.use(function (err, req, res, next) {
-  err.statusCode = err.statusCode || 500;
-
+app.use((err, req, res, next) => {
   // production環境下的錯誤處理
   if (process.env.NODE_ENV !== "dev") {
     err.stack = undefined;
@@ -70,12 +69,12 @@ app.use(function (err, req, res, next) {
 
     if (!err.isOperational) {
       console.error("出現重大錯誤", err);
-      err.statusCode = 500;
+      err.statusCode = status.INTERNAL_SERVER_ERROR;
       err.message = "系統錯誤，請洽系統管理員";
     }
   }
 
-  res.status(err.statusCode).json({
+  res.status(err.statusCode || status.INTERNAL_SERVER_ERROR).json({
     message: err.message,
     stack: err.stack,
   });
