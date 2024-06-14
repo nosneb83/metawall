@@ -25,6 +25,7 @@ const userSchema = new Schema(
     },
     followers: [
       {
+        _id: false,
         user: { type: Schema.ObjectId, ref: "User" },
         createdAt: {
           type: Date,
@@ -34,6 +35,7 @@ const userSchema = new Schema(
     ],
     following: [
       {
+        _id: false,
         user: { type: Schema.ObjectId, ref: "User" },
         createdAt: {
           type: Date,

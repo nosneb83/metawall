@@ -48,9 +48,8 @@ controller.signUp = catchAsync(async (req, res) => {
     throw new ApiError(status.BAD_REQUEST, "此 Email 已被註冊");
   }
 
-  // 加密密碼
+  // 加密密碼並創建帳號
   const passwordHash = await bcrypt.hash(password, saltLength);
-  // 創建帳號
   const newUser = await User.create({
     email: email,
     password: passwordHash,
@@ -78,8 +77,8 @@ controller.signIn = catchAsync(async (req, res) => {
   const user = await User.findOne({ email: email }, "+password").orFail(
     new ApiError(status.BAD_REQUEST, "此 Email 未註冊")
   );
-  const auth = await bcrypt.compare(password, user.password);
-  if (!auth) {
+  const verified = await bcrypt.compare(password, user.password);
+  if (!verified) {
     throw new ApiError(status.BAD_REQUEST, "密碼錯誤");
   }
 
@@ -88,33 +87,44 @@ controller.signIn = catchAsync(async (req, res) => {
 
 // 修改密碼
 controller.changePassword = catchAsync(async (req, res) => {
-  const password = req.body.password?.trim();
-  const confirmPassword = req.body.confirmPassword?.trim();
+  const oldPassword = req.body.oldPassword?.trim();
+  const newPassword = req.body.newPassword?.trim();
+  const confirmNewPassword = req.body.confirmNewPassword?.trim();
 
   // 檢查必填內容是否為空
-  if (!password) {
+  if (!oldPassword) {
+    throw new ApiError(status.BAD_REQUEST, "請填寫舊密碼");
+  }
+  if (!newPassword) {
     throw new ApiError(status.BAD_REQUEST, "請填寫新密碼");
   }
-  if (!confirmPassword) {
+  if (!confirmNewPassword) {
     throw new ApiError(status.BAD_REQUEST, "請重複確認新密碼");
   }
+  // 檢查新密碼是否與舊密碼相同
+  if (oldPassword === newPassword) {
+    throw new ApiError(status.BAD_REQUEST, "新密碼不可與舊密碼相同");
+  }
   // 檢查密碼長度
-  if (!validator.isLength(password, { min: 8 })) {
+  if (!validator.isLength(newPassword, { min: 8 })) {
     throw new ApiError(status.BAD_REQUEST, "密碼長度最低為8");
   }
   // 檢查確認密碼是否一致
-  if (password !== confirmPassword) {
+  if (newPassword !== confirmNewPassword) {
     throw new ApiError(status.BAD_REQUEST, "密碼與確認密碼不一致");
   }
 
-  const newPasswordHash = await bcrypt.hash(password, saltLength);
-  const user = await User.findByIdAndUpdate(
-    req.user.id,
-    {
-      password: newPasswordHash,
-    },
-    { new: true, runValidators: true }
-  );
+  // 取出舊密碼並比對
+  const user = await User.findById(req.user._id, "+password");
+  const verified = await bcrypt.compare(oldPassword, user.password);
+  if (!verified) {
+    throw new ApiError(status.BAD_REQUEST, "舊密碼錯誤");
+  }
+
+  // 設定加密後的新密碼
+  const newPasswordHash = await bcrypt.hash(newPassword, saltLength);
+  user.password = newPasswordHash;
+  await user.save();
 
   generateSendJWT(user, status.OK, res);
 });
@@ -123,6 +133,7 @@ controller.changePassword = catchAsync(async (req, res) => {
 controller.getProfile = catchAsync(async (req, res) => {
   res.json({
     status: "success",
+    // user: { ...req.user._doc, _id: undefined },
     user: req.user,
   });
 });
@@ -131,24 +142,24 @@ controller.getProfile = catchAsync(async (req, res) => {
 controller.updateProfile = catchAsync(async (req, res) => {
   const name = req.body.name?.trim();
   const photo = req.body.photo?.trim();
-  if (!name && !photo) {
-    return res.send("資料無異動");
+
+  // 檢查必填內容是否為空
+  if (!name) {
+    throw new ApiError(status.BAD_REQUEST, "請填寫名稱");
   }
 
-  let user = await User.findById(req.user.id);
-  if (name) {
-    user.name = name;
-  }
+  // 設定資料
+  req.user.name = name;
   if (photo) {
-    user.photo = photo;
+    req.user.photo = photo;
   }
-  await user.save();
+  await req.user.save();
 
   res.json({
     status: "success",
     user: {
-      name: user.name,
-      photo: user.photo,
+      name: req.user.name,
+      photo: req.user.photo,
     },
   });
 });
@@ -159,28 +170,24 @@ controller.follow = catchAsync(async (req, res) => {
     throw new ApiError(status.BAD_REQUEST, "您無法追蹤自己");
   }
 
-  await User.updateOne(
-    {
-      _id: req.user.id,
-      "following.user": { $ne: req.params.id },
-    },
-    {
-      $addToSet: { following: { user: req.params.id } },
-    }
+  // 檢查對方是否存在
+  const targetUser = await User.findById(req.params.id).orFail(
+    new ApiError(status.BAD_REQUEST, "找不到使用者")
   );
-  await User.updateOne(
-    {
-      _id: req.params.id,
-      "followers.user": { $ne: req.user.id },
-    },
-    {
-      $addToSet: { followers: { user: req.user.id } },
-    }
-  );
+
+  // 追蹤對方
+  if (!req.user.following.some((following) => following.user.toString() === targetUser.id)) {
+    req.user.following.push({ user: targetUser.id });
+  }
+  // 對方被追蹤
+  if (!targetUser.followers.some((follower) => follower.user.toString() === req.user.id)) {
+    targetUser.followers.push({ user: req.user.id });
+  }
+  await Promise.all([req.user.save(), targetUser.save()]);
 
   res.json({
     status: "success",
-    message: "您已成功追蹤！",
+    message: "您已成功追蹤",
   });
 });
 
@@ -190,49 +197,51 @@ controller.unfollow = catchAsync(async (req, res) => {
     throw new ApiError(status.BAD_REQUEST, "您無法取消追蹤自己");
   }
 
-  await User.updateOne(
-    {
-      _id: req.user.id,
-    },
-    {
-      $pull: { following: { user: req.params.id } },
-    }
+  // 檢查對方是否存在
+  const targetUser = await User.findById(req.params.id).orFail(
+    new ApiError(status.BAD_REQUEST, "找不到使用者")
   );
-  await User.updateOne(
-    {
-      _id: req.params.id,
-    },
-    {
-      $pull: { followers: { user: req.user.id } },
-    }
+
+  // 退追對方
+  req.user.following = req.user.following.filter(
+    (following) => following.user.toString() !== targetUser.id
   );
+  // 對方被退追
+  targetUser.followers = targetUser.followers.filter(
+    (follower) => follower.user.toString() !== req.user.id
+  );
+  await Promise.all([req.user.save(), targetUser.save()]);
 
   res.json({
     status: "success",
-    message: "您已成功取消追蹤！",
+    message: "您已成功取消追蹤",
   });
 });
 
 // 取得按讚列表
 controller.getLikeList = catchAsync(async (req, res) => {
-  const likes = await Post.find({
-    likes: req.user.id,
+  // 關聯按讚者資料
+  const likePosts = await Post.find({
+    likes: req.user.id
   }).populate({
     path: "user",
-    select: "name",
+    select: "name photo"
   });
+
   res.json({
     status: "success",
-    likes,
+    likes: likePosts.map(post => post._doc),
   });
 });
 
 // 取得追蹤列表
 controller.getFollowingList = catchAsync(async (req, res) => {
-  const user = await User.findById(req.user.id, "-_id following").populate({
+  // 關聯追蹤者資料
+  const user = await req.user.populate({
     path: "following.user",
-    select: "-_id name photo",
+    select: "name photo",
   });
+
   res.json({
     status: "success",
     following: user.following,
@@ -241,10 +250,17 @@ controller.getFollowingList = catchAsync(async (req, res) => {
 
 // 取得個人所有貼文列表
 controller.getUserPosts = catchAsync(async (req, res) => {
-  const posts = await Post.find({ user: req.user.id });
+  // 檢查使用者是否存在
+  await User.findById(req.params.id).orFail(
+    new ApiError(status.BAD_REQUEST, "找不到使用者")
+  );
+
+  // 取得使用者所有貼文
+  const posts = await Post.find({ user: req.params.id });
+
   res.json({
     status: "success",
-    posts,
+    posts: posts,
   });
 });
 
